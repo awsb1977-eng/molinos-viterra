@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Molinos Viterra | Panel OPC</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --verde:#1a6b2f;--verde2:#2d9e4f;--dorado:#c8a840;--dorado2:#f0c93a;
+  --oscuro:#0d1f0f;--gris:#f5f5f0;--blanco:#fff;--texto:#2c2c2c;
+  --rojo:#e53935;--azul:#1565c0;--morado:#6a1b9a;--naranja:#e65100;
+  --fb:#1877f2;--ig:#e1306c;--tk:#000;--wa:#25d366;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'Open Sans',sans-serif;color:var(--texto);background:var(--blanco);}
+
+/* ── LOGIN ── */
+#loginOverlay{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;}
+#loginOverlay.show{display:flex;}
+.login-box{background:var(--blanco);border-radius:20px;padding:40px 36px;width:100%;max-width:420px;box-shadow:0 30px 80px rgba(0,0,0,.4);animation:slideUp .3s ease;}
+@keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+.login-logo h2{font-family:'Montserrat',sans-serif;font-weight:800;color:var(--verde);font-size:1.4rem;text-align:center;}
+.login-logo p{font-size:.8rem;color:#999;margin-top:4px;text-align:center;margin-bottom:20px;}
+.login-field{margin-bottom:16px;}
+.login-field label{display:block;font-size:.8rem;font-weight:600;color:#555;margin-bottom:6px;}
+.login-field input{width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:.9rem;font-family:inherit;}
+.login-field input:focus{outline:none;border-color:var(--verde2);}
+.login-btn{width:100%;padding:13px;background:var(--verde);color:#fff;border:none;border-radius:30px;font-weight:700;font-size:.95rem;cursor:pointer;}
+.login-btn:hover{background:var(--verde2);}
+.login-error{display:none;background:#ffebee;color:var(--rojo);font-size:.82rem;padding:10px 14px;border-radius:8px;margin-bottom:12px;text-align:center;}
+.login-close{display:block;text-align:center;margin-top:16px;font-size:.8rem;color:#999;cursor:pointer;text-decoration:underline;}
+
+/* ── PANEL SHELL ── */
+#opcPanel{display:none;min-height:100vh;background:#f0f4f0;}
+#opcPanel.show{display:block;}
+.opc-topbar{background:var(--oscuro);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--dorado);position:sticky;top:0;z-index:100;}
+.opc-topbar-left span{font-family:'Montserrat',sans-serif;font-weight:800;color:var(--dorado);font-size:1rem;}
+.opc-user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);padding:6px 14px;border-radius:20px;}
+.opc-user-chip span{color:#ddd;font-size:.82rem;font-weight:600;}
+.avatar{width:30px;height:30px;background:var(--dorado);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.8rem;color:var(--oscuro);}
+.logout-btn{background:none;border:1px solid #555;color:#aaa;padding:5px 12px;border-radius:16px;font-size:.75rem;cursor:pointer;margin-left:8px;}
+.logout-btn:hover{border-color:var(--rojo);color:var(--rojo);}
+.opc-layout{display:flex;min-height:calc(100vh - 60px);}
+.opc-sidebar{width:220px;background:var(--blanco);border-right:1px solid #e0e8e0;padding:20px 0;flex-shrink:0;}
+.sidebar-section{margin-bottom:8px;}
+.sidebar-label{font-size:.68rem;font-weight:700;letter-spacing:2px;color:#aaa;padding:4px 20px 8px;text-transform:uppercase;}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;transition:all .2s;font-size:.85rem;color:#555;font-weight:600;border-left:3px solid transparent;}
+.sidebar-item:hover{background:#f0f8f2;color:var(--verde);}
+.sidebar-item.active{background:#e8f5e9;color:var(--verde);border-left-color:var(--verde);}
+.sidebar-item .si{font-size:1rem;width:20px;text-align:center;}
+.badge-soon{margin-left:auto;font-size:.6rem;background:#fff3e0;color:#e65100;padding:2px 7px;border-radius:8px;font-weight:700;}
+.badge-new{margin-left:auto;font-size:.6rem;background:#e8f5e9;color:var(--verde);padding:2px 7px;border-radius:8px;font-weight:700;}
+.badge-hot{margin-left:auto;font-size:.6rem;background:#fce4ec;color:#c62828;padding:2px 7px;border-radius:8px;font-weight:700;}
+.opc-main{flex:1;padding:28px;overflow-y:auto;}
+.opc-page{display:none;}
+.opc-page.active{display:block;}
+.dash-welcome h2{font-family:'Montserrat',sans-serif;font-weight:800;color:var(--oscuro);font-size:1.5rem;}
+.dash-welcome p{color:#777;font-size:.88rem;margin-top:4px;margin-bottom:20px;}
+
+/* ── MÓDULO MARKETING ── */
+.mkt-tabs{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;border-bottom:2px solid #e8e8e8;padding-bottom:0;}
+.mkt-tab{padding:10px 20px;border:none;background:none;cursor:pointer;font-weight:700;font-size:.85rem;color:#999;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;font-family:'Montserrat',sans-serif;}
+.mkt-tab.active{color:var(--verde);border-bottom-color:var(--verde);}
+.mkt-tab:hover{color:var(--verde2);}
+.mkt-section{display:none;}
+.mkt-section.active{display:block;}
+
+/* Cards generales */
+.card{background:var(--blanco);border-radius:14px;padding:24px;box-shadow:0 4px 16px rgba(0,0,0,.06);margin-bottom:20px;}
+.card-title{font-family:'Montserrat',sans-serif;font-weight:700;font-size:1rem;color:var(--oscuro);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+
+/* ── GENERADOR IA ── */
+.gen-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.gen-form .field{margin-bottom:14px;}
+.gen-form label{display:block;font-size:.78rem;font-weight:700;color:#666;margin-bottom:5px;text-transform:uppercase;letter-spacing:.8px;}
+.gen-form input,.gen-form select,.gen-form textarea{width:100%;padding:10px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:.88rem;font-family:inherit;transition:border .2s;}
+.gen-form input:focus,.gen-form select:focus,.gen-form textarea:focus{outline:none;border-color:var(--verde2);}
+.red-pills{display:flex;gap:8px;flex-wrap:wrap;}
+.red-pill{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;border:2px solid #e0e0e0;cursor:pointer;font-size:.8rem;font-weight:700;transition:all .2s;background:none;}
+.red-pill.sel-fb{border-color:var(--fb);background:#e3f0ff;color:var(--fb);}
+.red-pill.sel-ig{border-color:var(--ig);background:#fce4ec;color:var(--ig);}
+.red-pill.sel-tk{border-color:#333;background:#f0f0f0;color:#000;}
+.red-pill.sel-wa{border-color:var(--wa);background:#e8f5e9;color:#1b5e20;}
+.mode-pills{display:flex;gap:8px;flex-wrap:wrap;}
+.mode-pill{padding:7px 16px;border-radius:20px;border:2px solid #e0e0e0;cursor:pointer;font-size:.8rem;font-weight:700;transition:all .2s;background:none;color:#888;}
+.mode-pill.active{border-color:var(--verde);background:#e8f5e9;color:var(--verde);}
+.gen-btn{width:100%;padding:13px;background:linear-gradient(135deg,var(--verde),var(--verde2));color:#fff;border:none;border-radius:30px;font-weight:700;font-size:.95rem;cursor:pointer;transition:all .2s;margin-top:4px;}
+.gen-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(26,107,47,.3);}
+.gen-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+
+/* Preview */
+.preview-panel{border:1.5px solid #e8e8e8;border-radius:12px;overflow:hidden;min-height:320px;}
+.preview-header{background:#f8f8f8;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e8e8e8;}
+.preview-header span{font-size:.8rem;font-weight:700;color:#555;}
+.preview-network-tabs{display:flex;gap:4px;}
+.pnt{padding:4px 10px;border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;background:none;border:1px solid #ddd;color:#888;transition:all .2s;}
+.pnt.act{background:var(--verde);color:#fff;border-color:var(--verde);}
+.preview-body{padding:16px;min-height:260px;}
+.post-card{border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;max-width:340px;margin:0 auto;}
+.post-header{display:flex;align-items:center;gap:10px;padding:12px;}
+.post-avatar{width:36px;height:36px;background:var(--verde);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.8rem;font-weight:800;}
+.post-user strong{display:block;font-size:.82rem;font-weight:700;}
+.post-user span{font-size:.72rem;color:#aaa;}
+.post-img{width:100%;height:160px;background:linear-gradient(135deg,var(--verde),#0d3a18);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.3);font-size:.8rem;}
+.post-text{padding:12px;font-size:.82rem;line-height:1.55;color:#333;white-space:pre-wrap;}
+.post-actions{display:flex;gap:16px;padding:8px 12px;border-top:1px solid #f0f0f0;font-size:.78rem;color:#888;}
+.loading-ai{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;gap:12px;}
+.ai-spinner{width:40px;height:40px;border:3px solid #e8e8e8;border-top-color:var(--verde2);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.copy-btn{padding:6px 16px;background:var(--verde);color:#fff;border:none;border-radius:20px;font-size:.75rem;font-weight:700;cursor:pointer;transition:all .2s;}
+.copy-btn:hover{background:var(--verde2);}
+.wa-btn-mkt{padding:6px 16px;background:var(--wa);color:#fff;border:none;border-radius:20px;font-size:.75rem;font-weight:700;cursor:pointer;margin-left:6px;}
+
+/* ── PLANTILLAS ── */
+.tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;}
+.tpl-card{border:1.5px solid #e0e0e0;border-radius:12px;padding:16px;cursor:pointer;transition:all .2s;position:relative;}
+.tpl-card:hover{border-color:var(--verde2);background:#f0faf3;}
+.tpl-card.selected{border-color:var(--verde);background:#e8f5e9;}
+.tpl-icon{font-size:1.8rem;margin-bottom:8px;}
+.tpl-card h4{font-family:'Montserrat',sans-serif;font-weight:700;font-size:.88rem;color:var(--oscuro);margin-bottom:4px;}
+.tpl-card p{font-size:.76rem;color:#888;line-height:1.4;}
+.tpl-badge{position:absolute;top:8px;right:8px;font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:8px;}
+.tpl-badge.promo{background:#e8f5e9;color:var(--verde);}
+.tpl-badge.info{background:#e3f2fd;color:var(--azul);}
+.tpl-badge.viral{background:#fce4ec;color:var(--rojo);}
+
+/* ── CALENDARIO ── */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:20px;}
+.cal-header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.cal-nav{background:none;border:1px solid #ddd;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:.9rem;}
+.cal-day-label{text-align:center;font-size:.72rem;font-weight:700;color:#aaa;padding:4px 0;}
+.cal-day{aspect-ratio:1;border:1px solid #f0f0f0;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:.78rem;cursor:pointer;transition:all .2s;position:relative;}
+.cal-day:hover{background:#f0f8f2;border-color:var(--verde2);}
+.cal-day.today{background:#e8f5e9;border-color:var(--verde);font-weight:700;color:var(--verde);}
+.cal-day.has-post::after{content:'';position:absolute;bottom:4px;width:6px;height:6px;background:var(--dorado);border-radius:50%;}
+.cal-day.other-month{color:#ddd;}
+
+/* ── MÉTRICAS ── */
+.meta-connect{background:linear-gradient(135deg,#1877f2,#0d47a1);border-radius:14px;padding:28px;color:#fff;margin-bottom:20px;text-align:center;}
+.meta-connect h3{font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.1rem;margin-bottom:8px;}
+.meta-connect p{font-size:.85rem;opacity:.85;margin-bottom:20px;max-width:480px;margin-left:auto;margin-right:auto;}
+.meta-input{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.meta-input input{padding:10px 16px;border-radius:10px;border:none;font-size:.88rem;width:300px;font-family:inherit;}
+.meta-input button{padding:10px 22px;background:var(--dorado);color:var(--oscuro);border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:.88rem;}
+.meta-status{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);padding:5px 14px;border-radius:20px;font-size:.78rem;margin-top:12px;}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:20px;}
+.kpi-m{background:var(--blanco);border-radius:12px;padding:16px;box-shadow:0 4px 14px rgba(0,0,0,.06);border-top:3px solid var(--verde2);text-align:center;}
+.kpi-m.fb{border-top-color:var(--fb);}
+.kpi-m.ig{border-top-color:var(--ig);}
+.kpi-m.tk{border-top-color:#333;}
+.kpi-m.wa{border-top-color:var(--wa);}
+.kpi-m .val{font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.6rem;color:var(--oscuro);}
+.kpi-m .lbl{font-size:.72rem;color:#888;margin-top:2px;}
+.kpi-m .net{font-size:.7rem;font-weight:700;margin-bottom:4px;}
+.kpi-m .trend{font-size:.72rem;margin-top:4px;}
+.trend-up{color:var(--verde2);}
+.trend-dn{color:var(--rojo);}
+.chart-area{background:var(--blanco);border-radius:14px;padding:20px;box-shadow:0 4px 14px rgba(0,0,0,.06);margin-bottom:20px;}
+.chart-area h4{font-family:'Montserrat',sans-serif;font-weight:700;font-size:.9rem;color:var(--oscuro);margin-bottom:16px;}
+.bar-chart{display:flex;align-items:flex-end;gap:8px;height:120px;border-bottom:2px solid #f0f0f0;padding-bottom:4px;}
+.bar-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;}
+.bar{border-radius:4px 4px 0 0;width:100%;transition:height .5s;min-height:4px;}
+.bar-label{font-size:.65rem;color:#aaa;white-space:nowrap;}
+.bar-val{font-size:.65rem;font-weight:700;color:#555;}
+.top-posts{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.top-post-card{background:var(--blanco);border-radius:12px;padding:16px;box-shadow:0 4px 12px rgba(0,0,0,.06);border-left:4px solid var(--verde2);}
+.top-post-card.fb-card{border-left-color:var(--fb);}
+.top-post-card.ig-card{border-left-color:var(--ig);}
+.top-post-card .net-tag{font-size:.7rem;font-weight:700;margin-bottom:6px;}
+.top-post-card p{font-size:.8rem;color:#555;line-height:1.45;margin-bottom:10px;}
+.post-stats{display:flex;gap:12px;font-size:.75rem;color:#888;}
+.post-stats span strong{color:var(--oscuro);}
+
+/* ── HISTORIAL ── */
+.hist-table{width:100%;border-collapse:collapse;}
+.hist-table th{background:#f5f5f0;padding:10px 12px;text-align:left;font-size:.78rem;font-family:'Montserrat',sans-serif;color:#555;border-bottom:2px solid #e0e0e0;}
+.hist-table td{padding:10px 12px;font-size:.82rem;border-bottom:1px solid #f0f0f0;color:#444;}
+.hist-table tr:hover td{background:#fafafa;}
+.status-pub{color:var(--verde2);font-weight:700;font-size:.75rem;}
+.status-prog{color:var(--dorado);font-weight:700;font-size:.75rem;}
+.status-bor{color:#aaa;font-weight:700;font-size:.75rem;}
+.net-icon{font-size:.9rem;}
+
+/* ── CONFIG ── */
+.config-section{margin-bottom:24px;}
+.config-section h4{font-family:'Montserrat',sans-serif;font-weight:700;font-size:.9rem;color:var(--oscuro);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;}
+.config-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f5f5f5;}
+.config-row:last-child{border-bottom:none;}
+.config-row label{font-size:.85rem;color:#444;font-weight:600;}
+.config-row small{display:block;font-size:.75rem;color:#aaa;margin-top:2px;}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;inset:0;background:#ddd;border-radius:12px;cursor:pointer;transition:.3s;}
+.toggle-slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.3s;}
+.toggle input:checked+.toggle-slider{background:var(--verde2);}
+.toggle input:checked+.toggle-slider::before{transform:translateX(20px);}
+.config-select{padding:6px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:.82rem;font-family:inherit;}
+.save-config-btn{padding:10px 28px;background:var(--verde);color:#fff;border:none;border-radius:20px;font-weight:700;font-size:.88rem;cursor:pointer;margin-top:8px;}
+
+/* ── COMING SOON ── */
+.coming-soon{text-align:center;padding:60px 20px;}
+.coming-soon .cs-icon{font-size:4rem;margin-bottom:16px;}
+.coming-soon h3{font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.4rem;color:var(--oscuro);margin-bottom:8px;}
+.coming-soon p{color:#888;font-size:.9rem;max-width:380px;margin:0 auto 24px;}
+.cs-features{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;}
+.cs-feat{background:#f0f8f2;color:var(--verde);padding:6px 16px;border-radius:20px;font-size:.8rem;font-weight:600;border:1px solid #c8e6c9;}
+
+/* ── USERS / PERFIL ── */
+.users-table{width:100%;border-collapse:collapse;background:var(--blanco);border-radius:14px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.06);}
+.users-table th{background:var(--verde);color:#fff;padding:12px 16px;text-align:left;font-size:.82rem;font-family:'Montserrat',sans-serif;}
+.users-table td{padding:12px 16px;font-size:.85rem;border-bottom:1px solid #f0f0f0;color:#444;}
+.role-badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:.72rem;font-weight:700;}
+.role-super{background:#e8f5e9;color:var(--verde);}
+.role-op{background:#e3f2fd;color:var(--azul);}
+.status-on{color:var(--verde2);font-weight:700;font-size:.8rem;}
+.perfil-card{background:var(--blanco);border-radius:14px;padding:28px;box-shadow:0 4px 16px rgba(0,0,0,.06);max-width:480px;}
+.perfil-avatar-big{width:72px;height:72px;background:var(--verde);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:800;color:#fff;font-family:'Montserrat',sans-serif;margin-bottom:16px;}
+.perfil-field{margin-top:14px;}
+.perfil-field label{display:block;font-size:.72rem;font-weight:700;color:#aaa;margin-bottom:3px;text-transform:uppercase;letter-spacing:1px;}
+.perfil-field span{font-size:.9rem;color:var(--oscuro);font-weight:600;}
+
+/* WEB PÚBLICA */
+#publicSite{display:block;}
+nav{position:fixed;top:0;width:100%;z-index:999;background:rgba(13,31,15,.92);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:space-between;padding:0 5%;height:64px;border-bottom:2px solid var(--dorado);}
+.nav-logo span{font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.2rem;color:var(--dorado);}
+nav ul{list-style:none;display:flex;gap:24px;}
+nav ul a{color:#ddd;text-decoration:none;font-size:.85rem;font-weight:600;transition:color .2s;}
+nav ul a:hover{color:var(--dorado);}
+.nav-cta{background:var(--dorado);color:var(--oscuro)!important;padding:6px 16px;border-radius:20px;font-weight:700!important;}
+#hero{min-height:100vh;background:linear-gradient(135deg,var(--oscuro) 0%,#1a4020 60%,#0d2e15 100%);display:flex;align-items:center;justify-content:center;text-align:center;padding:80px 5% 40px;position:relative;overflow:hidden;}
+#hero::before{content:'';position:absolute;inset:0;background:url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1400&q=80') center/cover;opacity:.12;}
+.hero-content{position:relative;z-index:2;max-width:800px;}
+.hero-badge{display:inline-block;background:var(--dorado);color:var(--oscuro);font-size:.75rem;font-weight:700;letter-spacing:2px;padding:4px 16px;border-radius:20px;margin-bottom:20px;}
+.hero-content h1{font-family:'Montserrat',sans-serif;font-size:clamp(2rem,5vw,3.8rem);font-weight:800;color:var(--blanco);line-height:1.1;margin-bottom:16px;}
+.hero-content h1 span{color:var(--dorado);}
+.hero-content p{color:#c8dfc8;font-size:1.05rem;max-width:580px;margin:0 auto 32px;line-height:1.7;}
+.hero-btns{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:30px;font-weight:700;font-size:.9rem;cursor:pointer;text-decoration:none;transition:all .2s;}
+.btn-primary{background:var(--dorado);color:var(--oscuro);}
+.btn-primary:hover{background:var(--dorado2);transform:translateY(-2px);}
+.btn-outline{border:2px solid var(--blanco);color:var(--blanco);}
+.btn-outline:hover{background:var(--blanco);color:var(--oscuro);}
+.hero-stats{display:flex;gap:40px;justify-content:center;margin-top:52px;flex-wrap:wrap;}
+.stat{text-align:center;}
+.stat strong{display:block;font-family:'Montserrat',sans-serif;font-size:2rem;font-weight:800;color:var(--dorado);}
+.stat span{color:#aaa;font-size:.8rem;}
+section.pub{padding:80px 5%;}
+.section-label{font-size:.75rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--verde2);margin-bottom:8px;}
+.section-title{font-family:'Montserrat',sans-serif;font-size:clamp(1.6rem,3vw,2.4rem);font-weight:800;color:var(--oscuro);margin-bottom:16px;}
+.section-title span{color:var(--verde2);}
+.section-sub{color:#666;max-width:600px;line-height:1.7;margin-bottom:48px;}
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:24px;}
+.prod-card{border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.08);transition:transform .2s;}
+.prod-card:hover{transform:translateY(-6px);}
+.prod-img{height:180px;background:linear-gradient(135deg,var(--verde),var(--verde2));position:relative;}
+.prod-img img{width:100%;height:100%;object-fit:cover;opacity:.7;}
+.prod-badge{position:absolute;top:12px;right:12px;background:var(--dorado);color:var(--oscuro);font-size:.7rem;font-weight:700;padding:3px 10px;border-radius:10px;}
+.prod-body{padding:20px;}
+.prod-body h3{font-family:'Montserrat',sans-serif;font-weight:700;font-size:1rem;color:var(--oscuro);margin-bottom:6px;}
+.prod-body .peso{font-size:.78rem;color:var(--verde2);font-weight:600;margin-bottom:8px;}
+.prod-body p{font-size:.82rem;color:#666;line-height:1.55;}
+.prod-body .btn-sm{display:inline-block;margin-top:12px;padding:6px 16px;background:var(--verde);color:#fff;border-radius:20px;font-size:.78rem;font-weight:700;cursor:pointer;border:none;}
+.serv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;}
+.serv-card{background:rgba(255,255,255,.05);border:1px solid rgba(200,168,64,.25);border-radius:16px;padding:32px;transition:all .2s;}
+.serv-card:hover{background:rgba(255,255,255,.09);border-color:var(--dorado);}
+.serv-icon{font-size:2.5rem;margin-bottom:16px;}
+.serv-card h3{font-family:'Montserrat',sans-serif;font-weight:700;color:var(--dorado);margin-bottom:12px;}
+.serv-card p{color:#bbb;font-size:.88rem;line-height:1.65;margin-bottom:16px;}
+.serv-list{list-style:none;}
+.serv-list li{color:#ccc;font-size:.82rem;padding:4px 0;padding-left:20px;position:relative;}
+.serv-list li::before{content:'✔';position:absolute;left:0;color:var(--verde2);}
+.porque-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;}
+.porque-card{background:rgba(255,255,255,.08);border-radius:16px;padding:28px;text-align:center;border:1px solid rgba(255,255,255,.1);}
+.nosotros-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;}
+.nosotros-img{border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.15);}
+.nosotros-img img{width:100%;height:400px;object-fit:cover;}
+.mv-cards{display:flex;flex-direction:column;gap:20px;margin-top:24px;}
+.mv-card{background:var(--blanco);border-radius:12px;padding:20px 24px;border-left:4px solid var(--verde2);box-shadow:0 4px 16px rgba(0,0,0,.06);}
+.mv-card h4{font-family:'Montserrat',sans-serif;font-weight:700;color:var(--verde);margin-bottom:6px;font-size:.95rem;}
+.mv-card p{font-size:.88rem;color:#555;line-height:1.6;}
+.prod-tabs{display:flex;gap:12px;margin-bottom:36px;flex-wrap:wrap;}
+.tab{padding:8px 20px;border-radius:20px;border:2px solid #ddd;background:none;cursor:pointer;font-weight:600;font-size:.85rem;transition:all .2s;}
+.tab.active,.tab:hover{background:var(--verde);color:var(--blanco);border-color:var(--verde);}
+.video-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;}
+.video-card{border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.1);}
+.video-placeholder{background:linear-gradient(135deg,#1a1a2e,#16213e);aspect-ratio:16/9;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;}
+.video-placeholder::before{content:'';position:absolute;inset:0;background:url('https://images.unsplash.com/photo-1560493676-04071c5f467b?w=600&q=60') center/cover;opacity:.25;}
+.play-btn{width:60px;height:60px;background:rgba(200,168,64,.9);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;position:relative;z-index:2;}
+.video-label{color:#fff;font-size:.85rem;font-weight:600;margin-top:12px;position:relative;z-index:2;}
+.video-caption{padding:16px;background:#fff;}
+.video-caption h4{font-family:'Montserrat',sans-serif;font-weight:700;font-size:.95rem;color:var(--oscuro);}
+.contacto-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start;}
+.info-item{display:flex;gap:14px;margin-bottom:20px;align-items:flex-start;}
+.info-icon{width:40px;height:40px;background:var(--verde);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;}
+.form-card{background:var(--blanco);border-radius:16px;padding:32px;box-shadow:0 8px 30px rgba(0,0,0,.08);}
+.form-group{margin-bottom:16px;}
+.form-group label{display:block;font-size:.82rem;font-weight:600;color:#555;margin-bottom:6px;}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:.9rem;font-family:inherit;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.btn-submit{width:100%;padding:13px;background:var(--verde);color:#fff;border:none;border-radius:30px;font-weight:700;font-size:.95rem;cursor:pointer;}
+.social-row{display:flex;gap:12px;margin-top:24px;}
+.soc-btn{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;text-decoration:none;}
+.soc-fb{background:#1877f2;color:#fff;}
+.soc-ig{background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:#fff;}
+.soc-yt{background:#ff0000;color:#fff;}
+.soc-tk{background:#000;color:#fff;}
+footer{background:var(--oscuro);color:#aaa;padding:40px 5% 20px;text-align:center;}
+.footer-logo{font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.4rem;color:var(--dorado);margin-bottom:8px;}
+.wa-float{position:fixed;bottom:24px;right:24px;z-index:998;display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
+.wa-btn-f{width:56px;height:56px;background:#25d366;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.6rem;text-decoration:none;box-shadow:0 4px 20px rgba(37,211,102,.4);}
+@media(max-width:768px){nav ul{display:none;}.nosotros-grid,.contacto-grid,.gen-layout,.top-posts{grid-template-columns:1fr;}.opc-sidebar{display:none;}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo"><h2>🌾 MOLINOS VITERRA</h2><p>Panel de Administración OPC</p></div>
+    <div id="loginError" class="login-error">Usuario o contraseña incorrectos.</div>
+    <div class="login-field"><label>Usuario</label><input type="text" id="loginUser" placeholder="Tu usuario" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+    <div class="login-field"><label>Contraseña</label><input type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+    <button class="login-btn" onclick="doLogin()">Ingresar al Panel OPC</button>
+    <span class="login-close" onclick="closeLogin()">← Volver al sitio público</span>
+  </div>
+</div>
+
+<!-- PANEL OPC -->
+<div id="opcPanel">
+  <div class="opc-topbar">
+    <div class="opc-topbar-left" style="display:flex;align-items:center;gap:12px;">
+      <span>MOLINOS VITERRA</span>
+      <small style="color:#555;font-size:.7rem;">Panel OPC v2</small>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="opc-user-chip"><div class="avatar" id="userAvatar">A</div><span id="userNameDisplay">Usuario</span></div>
+      <button class="logout-btn" onclick="doLogout()">Salir</button>
+    </div>
+  </div>
+  <div class="opc-layout">
+    <div class="opc-sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Principal</div>
+        <div class="sidebar-item" onclick="showPage('dashboard',this)"><span class="si">📊</span> Dashboard</div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Módulos OPC</div>
+        <div class="sidebar-item" onclick="showPage('marketing',this)"><span class="si">📣</span> Marketing IA <span class="badge-hot">NUEVO</span></div>
+        <div class="sidebar-item" onclick="showPage('pedidos',this)"><span class="si">📋</span> Pedidos <span class="badge-soon">PRONTO</span></div>
+        <div class="sidebar-item" onclick="showPage('chatbot',this)"><span class="si">🤖</span> Chatbot IA <span class="badge-soon">PRONTO</span></div>
+        <div class="sidebar-item" onclick="showPage('clientes',this)"><span class="si">👥</span> Clientes <span class="badge-soon">PRONTO</span></div>
+        <div class="sidebar-item" onclick="showPage('reportes',this)"><span class="si">📈</span> Reportes <span class="badge-soon">PRONTO</span></div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Sistema</div>
+        <div class="sidebar-item" onclick="showPage('usuarios',this)"><span class="si">🔐</span> Usuarios</div>
+        <div class="sidebar-item" onclick="showPage('perfil',this)"><span class="si">👤</span> Mi Perfil</div>
+      </div>
+    </div>
+
+    <div class="opc-main">
+
+      <!-- DASHBOARD -->
+      <div class="opc-page active" id="page-dashboard">
+        <div class="dash-welcome"><h2>Panel OPC — Molinos Viterra 🌾</h2><p id="dashTime"></p></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px;">
+          <div class="kpi-m"><div class="net" style="color:var(--verde2)">🌾 PRODUCTOS</div><div class="val">7</div><div class="lbl">Líneas activas</div></div>
+          <div class="kpi-m fb"><div class="net" style="color:var(--fb)">📘 FACEBOOK</div><div class="val" id="kpi-fb-seg">—</div><div class="lbl">Seguidores</div></div>
+          <div class="kpi-m ig"><div class="net" style="color:var(--ig)">📷 INSTAGRAM</div><div class="val" id="kpi-ig-seg">—</div><div class="lbl">Seguidores</div></div>
+          <div class="kpi-m wa"><div class="net" style="color:var(--wa)">💬 WHATSAPP</div><div class="val">0</div><div class="lbl">Contactos</div></div>
+        </div>
+        <div class="card"><div class="card-title">🚀 Accesos rápidos</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="gen-btn" style="width:auto;padding:9px 20px;font-size:.82rem;" onclick="showPage('marketing',document.querySelector('[onclick*=marketing]'))">📣 Crear campaña IA</button>
+            <button class="gen-btn" style="width:auto;padding:9px 20px;font-size:.82rem;background:linear-gradient(135deg,var(--fb),#0d47a1);" onclick="showPage('marketing',document.querySelector('[onclick*=marketing]'));setTimeout(()=>switchMktTab('metricas'),200)">📊 Ver métricas</button>
+            <button class="gen-btn" style="width:auto;padding:9px 20px;font-size:.82rem;background:linear-gradient(135deg,#555,#222);" onclick="showPage('marketing',document.querySelector('[onclick*=marketing]'));setTimeout(()=>switchMktTab('calendario'),200)">📅 Calendario</button>
+          </div>
+        </div>
+        <div class="card"><div class="card-title">📋 Estado de módulos OPC</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+            <div style="background:#e8f5e9;border-radius:10px;padding:14px;border-left:4px solid var(--verde2)"><strong style="font-size:.85rem;color:var(--verde)">✓ Login Admin</strong><p style="font-size:.75rem;color:#666;margin-top:4px;">Activo · 3 usuarios</p></div>
+            <div style="background:#e8f5e9;border-radius:10px;padding:14px;border-left:4px solid var(--verde2)"><strong style="font-size:.85rem;color:var(--verde)">✓ Agente IA Marketing</strong><p style="font-size:.75rem;color:#666;margin-top:4px;">Activo · 4 redes sociales</p></div>
+            <div style="background:#fff3e0;border-radius:10px;padding:14px;border-left:4px solid var(--dorado)"><strong style="font-size:.85rem;color:#e65100;">⏳ Gestión de Pedidos</strong><p style="font-size:.75rem;color:#666;margin-top:4px;">En desarrollo</p></div>
+            <div style="background:#fff3e0;border-radius:10px;padding:14px;border-left:4px solid var(--dorado)"><strong style="font-size:.85rem;color:#e65100;">⏳ Chatbot IA</strong><p style="font-size:.75rem;color:#666;margin-top:4px;">En desarrollo</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MARKETING IA -->
+      <div class="opc-page" id="page-marketing">
+        <div class="dash-welcome"><h2>📣 Agente IA — Marketing</h2><p>Genera campañas inteligentes para Facebook, Instagram, TikTok y WhatsApp.</p></div>
+        <div class="mkt-tabs">
+          <button class="mkt-tab active" onclick="switchMktTab('generador')">✨ Generador IA</button>
+          <button class="mkt-tab" onclick="switchMktTab('plantillas')">📄 Plantillas</button>
+          <button class="mkt-tab" onclick="switchMktTab('calendario')">📅 Calendario</button>
+          <button class="mkt-tab" onclick="switchMktTab('metricas')">📊 Métricas</button>
+          <button class="mkt-tab" onclick="switchMktTab('historial')">🕐 Historial</button>
+          <button class="mkt-tab" onclick="switchMktTab('config')">⚙️ Configuración</button>
+        </div>
+
+        <!-- GENERADOR -->
+        <div class="mkt-section active" id="mkt-generador">
+          <div class="gen-layout">
+            <div class="card gen-form">
+              <div class="card-title">✨ Configurar campaña</div>
+              <div class="field"><label>Modo de creación</label>
+                <div class="mode-pills">
+                  <button class="mode-pill active" onclick="setMode('auto',this)">🤖 IA automática</button>
+                  <button class="mode-pill" onclick="setMode('idea',this)">💡 Desarrollo de idea</button>
+                  <button class="mode-pill" onclick="setMode('tpl',this)">📄 Desde plantilla</button>
+                </div>
+              </div>
+              <div class="field" id="idea-field" style="display:none;">
+                <label>Tu idea o concepto</label>
+                <textarea id="userIdea" rows="2" placeholder="Ej: Quiero promocionar VitaCerdo Engorde con descuento de fin de mes..."></textarea>
+              </div>
+              <div class="field"><label>Producto / Servicio</label>
+                <select id="genProd">
+                  <option value="VitaCerdo Pre-Inicio">VitaCerdo Pre-Inicio</option>
+                  <option value="VitaCerdo Inicio">VitaCerdo Inicio</option>
+                  <option value="VitaCerdo Crecimiento">VitaCerdo Crecimiento</option>
+                  <option value="VitaCerdo Engorde" selected>VitaCerdo Engorde</option>
+                  <option value="VitaCerdo Mantenimiento">VitaCerdo Mantenimiento</option>
+                  <option value="VitaMarrana Lactante">VitaMarrana Lactante</option>
+                  <option value="VitaCerdo Reproductor">VitaCerdo Reproductor</option>
+                  <option value="Servicio de Molienda">Servicio de Molienda</option>
+                  <option value="Servicio de Ensacado">Servicio de Ensacado</option>
+                  <option value="Empresa general">Molinos Viterra (general)</option>
+                </select>
+              </div>
+              <div class="field"><label>Objetivo de campaña</label>
+                <select id="genObjetivo">
+                  <option>Aumentar ventas</option>
+                  <option>Dar a conocer el producto</option>
+                  <option>Promoción / Descuento especial</option>
+                  <option>Educar al cliente (beneficios)</option>
+                  <option>Generar consultas por WhatsApp</option>
+                  <option>Posicionamiento de marca</option>
+                </select>
+              </div>
+              <div class="field"><label>Tono del mensaje</label>
+                <select id="genTono">
+                  <option>Profesional y técnico</option>
+                  <option>Cercano y amigable</option>
+                  <option>Urgente y promocional</option>
+                  <option>Educativo e informativo</option>
+                  <option>Motivador y aspiracional</option>
+                </select>
+              </div>
+              <div class="field"><label>Redes sociales destino</label>
+                <div class="red-pills">
+                  <button class="red-pill sel-fb" id="pill-fb" onclick="toggleRed('fb')">📘 Facebook</button>
+                  <button class="red-pill sel-ig" id="pill-ig" onclick="toggleRed('ig')">📷 Instagram</button>
+                  <button class="red-pill sel-tk" id="pill-tk" onclick="toggleRed('tk')">♪ TikTok</button>
+                  <button class="red-pill sel-wa" id="pill-wa" onclick="toggleRed('wa')">💬 WhatsApp</button>
+                </div>
+              </div>
+              <div class="field"><label>Incluir en el post</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+                  <label style="display:flex;align-items:center;gap:5px;font-size:.8rem;cursor:pointer;"><input type="checkbox" id="inc-emoji" checked> Emojis</label>
+                  <label style="display:flex;align-items:center;gap:5px;font-size:.8rem;cursor:pointer;"><input type="checkbox" id="inc-hash" checked> Hashtags</label>
+                  <label style="display:flex;align-items:center;gap:5px;font-size:.8rem;cursor:pointer;"><input type="checkbox" id="inc-cta" checked> CTA WhatsApp</label>
+                  <label style="display:flex;align-items:center;gap:5px;font-size:.8rem;cursor:pointer;"><input type="checkbox" id="inc-precio"> Mencionar precio</label>
+                </div>
+              </div>
+              <button class="gen-btn" id="genBtn" onclick="generarCampana()">✨ Generar con IA</button>
+            </div>
+            <div class="card" style="padding:0;overflow:hidden;">
+              <div class="preview-header">
+                <span>Vista previa del post</span>
+                <div class="preview-network-tabs">
+                  <button class="pnt act" id="pnt-fb" onclick="switchPreview('fb',this)">FB</button>
+                  <button class="pnt" id="pnt-ig" onclick="switchPreview('ig',this)">IG</button>
+                  <button class="pnt" id="pnt-tk" onclick="switchPreview('tk',this)">TK</button>
+                  <button class="pnt" id="pnt-wa" onclick="switchPreview('wa',this)">WA</button>
+                </div>
+              </div>
+              <div class="preview-body" id="previewBody">
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:260px;color:#bbb;text-align:center;gap:10px;">
+                  <div style="font-size:3rem;">✨</div>
+                  <p style="font-size:.85rem;">Configura tu campaña y presiona<br/><strong>Generar con IA</strong></p>
+                </div>
+              </div>
+              <div id="postActions" style="display:none;padding:12px 16px;border-top:1px solid #f0f0f0;display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="copy-btn" onclick="copiarPost()">📋 Copiar texto</button>
+                <button class="wa-btn-mkt" onclick="enviarWA()">💬 Enviar por WA</button>
+                <button class="copy-btn" style="background:var(--fb);" onclick="guardarCampana()">💾 Guardar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PLANTILLAS -->
+        <div class="mkt-section" id="mkt-plantillas">
+          <div class="card">
+            <div class="card-title">📄 Plantillas de campaña</div>
+            <p style="font-size:.83rem;color:#888;margin-bottom:16px;">Selecciona una plantilla y la IA la adaptará automáticamente para Molinos Viterra.</p>
+            <div class="tpl-grid" id="tplGrid"></div>
+            <button class="gen-btn" style="max-width:260px;margin-top:20px;" id="useTplBtn" disabled onclick="usarPlantilla()">✨ Usar esta plantilla con IA</button>
+          </div>
+        </div>
+
+        <!-- CALENDARIO -->
+        <div class="mkt-section" id="mkt-calendario">
+          <div class="card">
+            <div class="card-title">📅 Calendario de publicaciones</div>
+            <div class="cal-header">
+              <button class="cal-nav" onclick="cambiarMes(-1)">◀</button>
+              <strong id="calMonthLabel" style="font-family:Montserrat,sans-serif;font-size:.95rem;"></strong>
+              <button class="cal-nav" onclick="cambiarMes(1)">▶</button>
+            </div>
+            <div class="cal-grid" id="calGrid"></div>
+            <div id="calDetail" style="background:#f8fdf8;border-radius:10px;padding:14px;font-size:.83rem;color:#555;border:1px solid #e0f0e0;display:none;"></div>
+          </div>
+        </div>
+
+        <!-- MÉTRICAS -->
+        <div class="mkt-section" id="mkt-metricas">
+          <div class="meta-connect" id="metaConnectBox">
+            <h3>🔗 Conectar con Meta Business</h3>
+            <p>Ingresa tu Token de Acceso de Meta para visualizar métricas reales de Facebook e Instagram en tiempo real.</p>
+            <div class="meta-input">
+              <input type="password" id="metaToken" placeholder="EAAxxxx... (Meta Access Token)"/>
+              <button onclick="conectarMeta()">Conectar</button>
+            </div>
+            <div class="meta-status" id="metaStatus">⚪ Sin conectar</div>
+            <p style="font-size:.72rem;opacity:.6;margin-top:12px;">Obtén tu token en Meta Business Suite → Configuración → Tokens de acceso</p>
+          </div>
+          <div id="metricasContent">
+            <div class="kpi-row" id="kpiMetricas"></div>
+            <div class="chart-area">
+              <h4>📈 Alcance semanal por red social</h4>
+              <div class="bar-chart" id="barChart"></div>
+            </div>
+            <div class="top-posts" id="topPosts"></div>
+          </div>
+        </div>
+
+        <!-- HISTORIAL -->
+        <div class="mkt-section" id="mkt-historial">
+          <div class="card">
+            <div class="card-title">🕐 Historial de campañas</div>
+            <table class="hist-table">
+              <thead><tr><th>Red</th><th>Campaña</th><th>Producto</th><th>Fecha</th><th>Estado</th></tr></thead>
+              <tbody id="historialBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- CONFIGURACIÓN -->
+        <div class="mkt-section" id="mkt-config">
+          <div class="card">
+            <div class="card-title">⚙️ Configuración del Agente IA</div>
+            <div class="config-section">
+              <h4>🎯 Enfoque de campañas</h4>
+              <div class="config-row"><div><label>Reforzar ventas en Parque Porcino</label><small>El agente priorizará mensajes para productores locales del Callao</small></div><label class="toggle"><input type="checkbox" id="cfg-local" checked><span class="toggle-slider"></span></label></div>
+              <div class="config-row"><div><label>Expandir a Lima Metropolitana</label><small>Incluir referencias a distribución en Lima Norte, Este y Sur</small></div><label class="toggle"><input type="checkbox" id="cfg-lima"><span class="toggle-slider"></span></label></div>
+              <div class="config-row"><div><label>Campañas estacionales automáticas</label><small>Generar contenido especial en fechas clave (Navidad, etc.)</small></div><label class="toggle"><input type="checkbox" id="cfg-estacional" checked><span class="toggle-slider"></span></label></div>
+            </div>
+            <div class="config-section">
+              <h4>📣 Redes activas</h4>
+              <div class="config-row"><div><label>Facebook</label><small>Publicaciones y anuncios pagados</small></div><label class="toggle"><input type="checkbox" id="cfg-fb" checked><span class="toggle-slider"></span></label></div>
+              <div class="config-row"><div><label>Instagram</label><small>Posts, stories y reels</small></div><label class="toggle"><input type="checkbox" id="cfg-ig" checked><span class="toggle-slider"></span></label></div>
+              <div class="config-row"><div><label>TikTok</label><small>Videos cortos y virales</small></div><label class="toggle"><input type="checkbox" id="cfg-tk" checked><span class="toggle-slider"></span></label></div>
+              <div class="config-row"><div><label>WhatsApp masivo</label><small>Mensajes a lista de contactos</small></div><label class="toggle"><input type="checkbox" id="cfg-wa" checked><span class="toggle-slider"></span></label></div>
+            </div>
+            <div class="config-section">
+              <h4>🤖 Parámetros de IA</h4>
+              <div class="config-row"><div><label>Idioma principal</label></div><select class="config-select"><option>Español (Perú)</option><option>Español neutro</option></select></div>
+              <div class="config-row"><div><label>Frecuencia de campañas sugerida</label></div><select class="config-select"><option>Diaria</option><option selected>3 veces por semana</option><option>Semanal</option></select></div>
+              <div class="config-row"><div><label>Producto con mayor énfasis</label></div><select class="config-select"><option>VitaCerdo Engorde</option><option>VitaCerdo Crecimiento</option><option>VitaMarrana Lactante</option><option>Todos por igual</option></select></div>
+            </div>
+            <div class="config-section">
+              <h4>📞 Datos de contacto en posts</h4>
+              <div class="config-row"><div><label>WhatsApp en todos los posts</label><small>923 269 720</small></div><label class="toggle"><input type="checkbox" id="cfg-wa-post" checked><span class="toggle-slider"></span></label></div>
+              <div class="config-row"><div><label>Incluir dirección</label><small>Parque Porcino, Ventanilla</small></div><label class="toggle"><input type="checkbox" id="cfg-dir"><span class="toggle-slider"></span></label></div>
+            </div>
+            <button class="save-config-btn" onclick="guardarConfig()">💾 Guardar configuración</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PEDIDOS -->
+      <div class="opc-page" id="page-pedidos"><div class="coming-soon"><div class="cs-icon">📋</div><h3>Gestión de Pedidos</h3><p>Módulo en desarrollo. Recibirás y gestionarás pedidos desde web y WhatsApp.</p><div class="cs-features"><span class="cs-feat">Pedidos web</span><span class="cs-feat">Pedidos WhatsApp</span><span class="cs-feat">Estado del pedido</span><span class="cs-feat">Notificaciones</span></div></div></div>
+      <div class="opc-page" id="page-chatbot"><div class="coming-soon"><div class="cs-icon">🤖</div><h3>Chatbot Conversacional IA</h3><p>Atención 24/7 con IA. Responde, cotiza y toma pedidos automáticamente.</p><div class="cs-features"><span class="cs-feat">Respuestas automáticas</span><span class="cs-feat">Cotización IA</span><span class="cs-feat">Integración WhatsApp</span><span class="cs-feat">Escalado humano</span></div></div></div>
+      <div class="opc-page" id="page-clientes"><div class="coming-soon"><div class="cs-icon">👥</div><h3>Base de Clientes</h3><p>Registra y gestiona tu cartera con historial de compras y segmentación.</p><div class="cs-features"><span class="cs-feat">Ficha cliente</span><span class="cs-feat">Historial pedidos</span><span class="cs-feat">Segmentación</span><span class="cs-feat">Exportar Excel</span></div></div></div>
+      <div class="opc-page" id="page-reportes"><div class="coming-soon"><div class="cs-icon">📈</div><h3>Reportes y Analytics</h3><p>Métricas de ventas, tráfico y rendimiento de campañas en tiempo real.</p><div class="cs-features"><span class="cs-feat">Ventas por período</span><span class="cs-feat">Top productos</span><span class="cs-feat">Tráfico web</span><span class="cs-feat">ROI campañas</span></div></div></div>
+
+      <!-- USUARIOS -->
+      <div class="opc-page" id="page-usuarios">
+        <div class="dash-welcome"><h2>Gestión de Usuarios 🔐</h2><p>Usuarios con acceso al Panel OPC.</p></div>
+        <table class="users-table">
+          <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Acceso</th><th>Estado</th></tr></thead>
+          <tbody>
+            <tr><td><strong>asilva</strong></td><td>Aldo Silva</td><td><span class="role-badge role-super">Super Admin</span></td><td>Todos los módulos</td><td><span class="status-on">● Activo</span></td></tr>
+            <tr><td><strong>csaavedra</strong></td><td>Carlos Saavedra</td><td><span class="role-badge role-op">Operador</span></td><td>Todos los módulos</td><td><span class="status-on">● Activo</span></td></tr>
+            <tr><td><strong>evergaray</strong></td><td>Ester Vergaray</td><td><span class="role-badge role-op">Operador</span></td><td>Todos los módulos</td><td><span class="status-on">● Activo</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- PERFIL -->
+      <div class="opc-page" id="page-perfil">
+        <div class="dash-welcome"><h2>Mi Perfil 👤</h2></div>
+        <div class="perfil-card">
+          <div class="perfil-avatar-big" id="perfilAvatar">A</div>
+          <h3 id="perfilNombre" style="font-family:Montserrat,sans-serif;font-weight:800;">Usuario</h3>
+          <p id="perfilRol" style="color:#888;font-size:.85rem;margin-top:4px;"></p>
+          <hr style="border:none;border-top:1px solid #f0f0f0;margin:16px 0;"/>
+          <div class="perfil-field"><label>Usuario</label><span id="perfilUser">—</span></div>
+          <div class="perfil-field"><label>Estado</label><span style="color:var(--verde2);font-weight:700;">● Sesión activa</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SITIO PÚBLICO -->
+<div id="publicSite">
+<nav>
+  <div class="nav-logo"><span>MOLINOS V!TERRA</span></div>
+  <ul>
+    <li><a href="#nosotros">Nosotros</a></li><li><a href="#productos">Productos</a></li>
+    <li><a href="#servicios">Servicios</a></li><li><a href="#porque">¿Por qué?</a></li>
+    <li><a href="#contacto" class="nav-cta">Cotizar</a></li>
+  </ul>
+</nav>
+<section id="hero">
+  <div class="hero-content">
+    <div class="hero-badge">🌾 Parque Porcino · Callao · Perú</div>
+    <h1>Transformamos Granos en<br/><span>Nutrición de Alto Rendimiento</span></h1>
+    <p>Alimento balanceado para porcinos y molienda de granos con estándares de calidad, eficiencia e inocuidad.</p>
+    <div class="hero-btns">
+      <a class="btn btn-primary" href="#productos">🐖 Ver Productos</a>
+      <a class="btn btn-outline" href="https://wa.me/51923269720?text=Hola%2C%20me%20interesa%20conocer%20sus%20productos" target="_blank">💬 WhatsApp</a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat"><strong>7+</strong><span>Líneas de producto</span></div>
+      <div class="stat"><strong>100%</strong><span>Calidad garantizada</span></div>
+      <div class="stat"><strong>2</strong><span>Servicios especializados</span></div>
+    </div>
+  </div>
+</section>
+<section class="pub" id="nosotros" style="background:#f5f5f0">
+  <div class="nosotros-grid">
+    <div>
+      <p class="section-label">Quiénes somos</p>
+      <h2 class="section-title">Conoce <span>Molinos Viterra</span></h2>
+      <p class="section-sub">Empresa agroindustrial en el Parque Porcino de Ventanilla, Callao.</p>
+      <div class="mv-cards">
+        <div class="mv-card"><h4>🎯 Misión</h4><p>Desarrollar soluciones en nutrición porcina que maximicen el rendimiento y rentabilidad de nuestros clientes.</p></div>
+        <div class="mv-card"><h4>🔭 Visión</h4><p>Ser empresa referente en la industria agroindustrial nacional, reconocida por calidad, eficiencia e innovación.</p></div>
+      </div>
+    </div>
+    <div class="nosotros-img"><img src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=700&q=80" alt="Instalaciones"/></div>
+  </div>
+</section>
+<section class="pub" id="productos">
+  <p class="section-label">Catálogo</p>
+  <h2 class="section-title">Nuestros <span>Productos</span></h2>
+  <div class="prod-tabs">
+    <button class="tab active" onclick="filterProd('todos',this)">Todos</button>
+    <button class="tab" onclick="filterProd('crecimiento',this)">Crecimiento</button>
+    <button class="tab" onclick="filterProd('reproductores',this)">Reproductores</button>
+    <button class="tab" onclick="filterProd('marrana',this)">Marranas</button>
+  </div>
+  <div class="prod-grid" id="prodGrid">
+    <div class="prod-card" data-cat="crecimiento"><div class="prod-img"><img src="https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=400&q=60" alt=""/><div class="prod-badge">Pre-Inicio</div></div><div class="prod-body"><h3>VitaCerdo Pre-Inicio</h3><div class="peso">📦 Polvo · 50 kg</div><p>Favorece la adaptación digestiva y reduce el estrés post-destete.</p><button class="btn-sm" onclick="cotizar('VitaCerdo Pre-Inicio')">Solicitar cotización</button></div></div>
+    <div class="prod-card" data-cat="crecimiento"><div class="prod-img"><img src="https://images.unsplash.com/photo-1611765083444-a2c58aa3e839?w=400&q=60" alt=""/><div class="prod-badge">Inicio</div></div><div class="prod-body"><h3>VitaCerdo Inicio</h3><div class="peso">📦 Polvo · 50 kg</div><p>Optimiza conversión alimenticia y fortalece el estado sanitario.</p><button class="btn-sm" onclick="cotizar('VitaCerdo Inicio')">Solicitar cotización</button></div></div>
+    <div class="prod-card" data-cat="crecimiento"><div class="prod-img"><img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=60" alt=""/><div class="prod-badge">Engorde</div></div><div class="prod-body"><h3>VitaCerdo Engorde</h3><div class="peso">📦 Polvo · 50 kg</div><p>Alta digestibilidad para optimizar ganancia de peso en acabado.</p><button class="btn-sm" onclick="cotizar('VitaCerdo Engorde')">Solicitar cotización</button></div></div>
+    <div class="prod-card" data-cat="marrana"><div class="prod-img"><img src="https://images.unsplash.com/photo-1560493676-04071c5f467b?w=400&q=60" alt=""/><div class="prod-badge">Lactante</div></div><div class="prod-body"><h3>VitaMarrana Lactante</h3><div class="peso">📦 Polvo · 50 kg</div><p>Previene postraciones y mejora la calidad de leche.</p><button class="btn-sm" onclick="cotizar('VitaMarrana Lactante')">Solicitar cotización</button></div></div>
+    <div class="prod-card" data-cat="reproductores"><div class="prod-img"><img src="https://images.unsplash.com/photo-1597916829826-02e5bb4a54e0?w=400&q=60" alt=""/><div class="prod-badge">Reproductor</div></div><div class="prod-body"><h3>VitaCerdo Reproductor</h3><div class="peso">📦 Polvo · 50 kg</div><p>Mejora tasa de ovulación y estimula el líbido en machos.</p><button class="btn-sm" onclick="cotizar('VitaCerdo Reproductor')">Solicitar cotización</button></div></div>
+  </div>
+</section>
+<section class="pub" id="servicios" style="background:#0d1f0f">
+  <p class="section-label" style="color:var(--dorado)">Lo que ofrecemos</p>
+  <h2 class="section-title" style="color:#fff">Nuestros <span style="color:var(--dorado)">Servicios</span></h2>
+  <div class="serv-grid">
+    <div class="serv-card"><div class="serv-icon">🌾</div><h3>Molienda de Granos</h3><p>Maíz, trigo, soya y derivados con granulometría ajustable.</p><ul class="serv-list"><li>Alta capacidad continua</li><li>Procesos limpios y seguros</li></ul></div>
+    <div class="serv-card"><div class="serv-icon">📦</div><h3>Ensacado Industrial</h3><p>Ensacado con trazabilidad y códigos de barras.</p><ul class="serv-list"><li>Control de peso por saco</li><li>Integración con inventario</li></ul></div>
+    <div class="serv-card"><div class="serv-icon">🔬</div><h3>Soporte Técnico</h3><p>Asesoría en nutrición porcina para tu granja.</p><ul class="serv-list"><li>Diagnóstico nutricional</li><li>Seguimiento de resultados</li></ul></div>
+  </div>
+</section>
+<section class="pub" id="porque" style="background:linear-gradient(135deg,#1a6b2f,#0d3a18)">
+  <p class="section-label" style="color:var(--dorado2)">Ventajas</p>
+  <h2 class="section-title" style="color:#fff">¿Por qué elegir <span style="color:var(--dorado2)">Molinos Viterra?</span></h2>
+  <div class="porque-grid">
+    <div class="porque-card"><div style="font-size:2.5rem;margin-bottom:12px;">📍</div><h4 style="font-family:Montserrat,sans-serif;font-weight:700;margin-bottom:8px;color:var(--dorado2)">Ubicación Estratégica</h4><p style="font-size:.85rem;color:#c8dfc8;">Dentro del Parque Porcino de Ventanilla.</p></div>
+    <div class="porque-card"><div style="font-size:2.5rem;margin-bottom:12px;">🔬</div><h4 style="font-family:Montserrat,sans-serif;font-weight:700;margin-bottom:8px;color:var(--dorado2)">Formulación Técnica</h4><p style="font-size:.85rem;color:#c8dfc8;">Productos para cada etapa del ciclo porcino.</p></div>
+    <div class="porque-card"><div style="font-size:2.5rem;margin-bottom:12px;">💬</div><h4 style="font-family:Montserrat,sans-serif;font-weight:700;margin-bottom:8px;color:var(--dorado2)">Atención Directa</h4><p style="font-size:.85rem;color:#c8dfc8;">WhatsApp y asesoría técnica personalizada.</p></div>
+    <div class="porque-card"><div style="font-size:2.5rem;margin-bottom:12px;">📈</div><h4 style="font-family:Montserrat,sans-serif;font-weight:700;margin-bottom:8px;color:var(--dorado2)">Rentabilidad Real</h4><p style="font-size:.85rem;color:#c8dfc8;">Mayor conversión alimenticia = menor costo.</p></div>
+  </div>
+</section>
+<section class="pub" id="contacto" style="background:#f5f5f0">
+  <p class="section-label">Contáctanos</p>
+  <h2 class="section-title">Contacto y <span>Cotizaciones</span></h2>
+  <div class="contacto-grid">
+    <div>
+      <h3 style="font-family:Montserrat,sans-serif;font-weight:700;margin-bottom:20px;">Información de contacto</h3>
+      <div class="info-item"><div class="info-icon">📍</div><div><strong>Dirección</strong><br/><span style="color:#666;font-size:.85rem;">Mz. 01 Lt. 03 B, Parque Porcino – Ventanilla, Callao</span></div></div>
+      <div class="info-item"><div class="info-icon">📞</div><div><strong>Teléfono</strong><br/><span style="color:#666;font-size:.85rem;">(01) 791 0901</span></div></div>
+      <div class="info-item"><div class="info-icon">💬</div><div><strong>WhatsApp</strong><br/><span style="color:#666;font-size:.85rem;">923 269 720</span></div></div>
+      <div class="info-item"><div class="info-icon">✉️</div><div><strong>Correo</strong><br/><span style="color:#666;font-size:.85rem;">comercial@molinosviterra.com.pe</span></div></div>
+      <div class="social-row">
+        <a class="soc-btn soc-fb" href="#">f</a>
+        <a class="soc-btn soc-ig" href="#">📷</a>
+        <a class="soc-btn soc-yt" href="#">▶</a>
+        <a class="soc-btn soc-tk" href="#">♪</a>
+      </div>
+    </div>
+    <div class="form-card">
+      <h3 style="font-family:Montserrat,sans-serif;font-weight:700;margin-bottom:20px;">💬 Solicitar cotización</h3>
+      <div id="formSuccess" style="display:none;background:#e8f5e9;border-radius:8px;padding:14px;text-align:center;color:var(--verde);font-weight:600;margin-bottom:14px;">✅ ¡Mensaje enviado! Te contactaremos pronto.</div>
+      <div class="form-row">
+        <div class="form-group"><label>Nombre *</label><input type="text" id="fname" placeholder="Tu nombre"/></div>
+        <div class="form-group"><label>WhatsApp *</label><input type="tel" id="fphone" placeholder="9XX XXX XXX"/></div>
+      </div>
+      <div class="form-group"><label>Producto</label><select id="fprod"><option>VitaCerdo Engorde</option><option>VitaCerdo Crecimiento</option><option>VitaMarrana Lactante</option><option>Servicio de Molienda</option><option>Información general</option></select></div>
+      <div class="form-group"><label>Mensaje</label><textarea id="fmsg" rows="3" placeholder="Cuéntanos sobre tu granja..."></textarea></div>
+      <button class="btn-submit" onclick="submitForm()">📩 Enviar solicitud</button>
+    </div>
+  </div>
+</section>
+<footer>
+  <div class="footer-logo">MOLINOS V!TERRA</div>
+  <p style="font-size:.85rem;color:#666;margin-bottom:16px;">"Nutrimos hoy, impulsamos el mañana"</p>
+  <p style="font-size:.72rem;color:#333;">© 2025 Molinos Viterra S.A.C · Parque Porcino, Ventanilla, Callao</p>
+</footer>
+<div class="wa-float">
+  <a class="wa-btn-f" href="https://wa.me/51923269720?text=Hola%20Molinos%20Viterra" target="_blank">💬</a>
+</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// USUARIOS Y AUTENTICACIÓN
+// ═══════════════════════════════════════════
+const USERS={
+  asilva:{pass:'Viterra2025!',name:'Aldo Silva',rol:'Super Admin',avatar:'AS'},
+  csaavedra:{pass:'Viterra2025!',name:'Carlos Saavedra',rol:'Operador',avatar:'CS'},
+  evergaray:{pass:'Viterra2025!',name:'Ester Vergaray',rol:'Operador',avatar:'EV'}
+};
+let currentUser=null;
+async function saveSession(u){try{await window.storage.set('mv_session',JSON.stringify({user:u,ts:Date.now()}));}catch(e){}}
+async function loadSession(){try{const r=await window.storage.get('mv_session');if(r&&r.value){const d=JSON.parse(r.value);if(d.user&&USERS[d.user]&&Date.now()-d.ts<8*3600000)return d.user;}}catch(e){}return null;}
+async function clearSession(){try{await window.storage.delete('mv_session');}catch(e){}}
+window.addEventListener('load',async()=>{
+  checkRoute();
+  const s=await loadSession();
+  if(s)loginAs(s);
+  updateTime();
+  renderCalendar();
+  renderPlantillas();
+  loadHistorial();
+  loadMetricas();
+});
+window.addEventListener('hashchange',checkRoute);
+function checkRoute(){if(window.location.hash==='#admin')document.getElementById('loginOverlay').classList.add('show');}
+function doLogin(){
+  const u=document.getElementById('loginUser').value.trim().toLowerCase();
+  const p=document.getElementById('loginPass').value;
+  const err=document.getElementById('loginError');
+  if(USERS[u]&&USERS[u].pass===p){
+    err.style.display='none';
+    document.getElementById('loginOverlay').classList.remove('show');
+    loginAs(u);saveSession(u);
+  }else{err.style.display='block';document.getElementById('loginPass').value='';}
+}
+function loginAs(u){
+  currentUser=u;
+  const usr=USERS[u];
+  document.getElementById('publicSite').style.display='none';
+  document.getElementById('opcPanel').classList.add('show');
+  document.getElementById('userAvatar').textContent=usr.avatar;
+  document.getElementById('userNameDisplay').textContent=usr.name;
+  document.getElementById('perfilAvatar').textContent=usr.avatar;
+  document.getElementById('perfilNombre').textContent=usr.name;
+  document.getElementById('perfilRol').textContent=usr.rol;
+  document.getElementById('perfilUser').textContent=u;
+  updateTime();
+}
+function closeLogin(){document.getElementById('loginOverlay').classList.remove('show');window.location.hash='';}
+async function doLogout(){await clearSession();currentUser=null;document.getElementById('opcPanel').classList.remove('show');document.getElementById('publicSite').style.display='block';window.location.hash='';}
+
+// ═══════════════════════════════════════════
+// NAVEGACIÓN
+// ═══════════════════════════════════════════
+function showPage(id,el){
+  document.querySelectorAll('.opc-page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(s=>s.classList.remove('active'));
+  const pg=document.getElementById('page-'+id);if(pg)pg.classList.add('active');
+  if(el)el.classList.add('active');
+}
+function switchMktTab(tab){
+  document.querySelectorAll('.mkt-tab').forEach((t,i)=>{const tabs=['generador','plantillas','calendario','metricas','historial','config'];t.classList.toggle('active',tabs[i]===tab);});
+  document.querySelectorAll('.mkt-section').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('mkt-'+tab);if(el)el.classList.add('active');
+}
+function updateTime(){
+  const el=document.getElementById('dashTime');
+  if(el){const n=new Date();el.textContent='🕐 '+n.toLocaleString('es-PE',{weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});}
+}
+
+// ═══════════════════════════════════════════
+// GENERADOR IA CON CLAUDE API
+// ═══════════════════════════════════════════
+let selectedRedes={'fb':true,'ig':true,'tk':true,'wa':true};
+let genMode='auto';
+let generatedTexts={};
+let currentPreviewNet='fb';
+let selectedTpl=null;
+
+function toggleRed(red){
+  selectedRedes[red]=!selectedRedes[red];
+  const pill=document.getElementById('pill-'+red);
+  if(!selectedRedes[red]){pill.style.opacity='.4';}
+  else{pill.style.opacity='1';}
+}
+function setMode(m,btn){
+  genMode=m;
+  document.querySelectorAll('.mode-pill').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('idea-field').style.display=(m==='idea'?'block':'none');
+}
+function switchPreview(net,btn){
+  currentPreviewNet=net;
+  document.querySelectorAll('.pnt').forEach(b=>b.classList.remove('act'));
+  btn.classList.add('act');
+  if(generatedTexts[net])renderPreview(net,generatedTexts[net]);
+  else if(Object.keys(generatedTexts).length>0){
+    document.getElementById('previewBody').innerHTML=`<div style="display:flex;align-items:center;justify-content:center;min-height:200px;color:#bbb;font-size:.85rem;">No se generó contenido para esta red</div>`;
+  }
+}
+
+async function generarCampana(){
+  const btn=document.getElementById('genBtn');
+  const prod=document.getElementById('genProd').value;
+  const obj=document.getElementById('genObjetivo').value;
+  const tono=document.getElementById('genTono').value;
+  const idea=document.getElementById('userIdea').value;
+  const emoji=document.getElementById('inc-emoji').checked;
+  const hash=document.getElementById('inc-hash').checked;
+  const cta=document.getElementById('inc-cta').checked;
+  const precio=document.getElementById('inc-precio').checked;
+  const redes=Object.keys(selectedRedes).filter(r=>selectedRedes[r]);
+  if(!redes.length){alert('Selecciona al menos una red social.');return;}
+
+  btn.disabled=true;btn.textContent='⏳ Generando con IA...';
+  document.getElementById('previewBody').innerHTML=`<div class="loading-ai"><div class="ai-spinner"></div><p style="font-size:.85rem;color:#888;">La IA está creando tu campaña...</p></div>`;
+  document.getElementById('postActions').style.display='none';
+
+  const redesNombres={'fb':'Facebook','ig':'Instagram','tk':'TikTok','wa':'WhatsApp masivo'};
+  const redesSelec=redes.map(r=>redesNombres[r]).join(', ');
+
+  const prompt=`Eres el Agente IA de Marketing de Molinos Viterra S.A.C., empresa peruana de alimento balanceado para porcinos ubicada en el Parque Porcino de Ventanilla, Callao.
+
+Genera contenido de marketing para las siguientes redes sociales: ${redesSelec}.
+
+Datos de la campaña:
+- Producto: ${prod}
+- Objetivo: ${obj}
+- Tono: ${tono}
+${genMode==='idea'&&idea?'- Idea base del usuario: '+idea:''}
+${emoji?'- Incluir emojis relevantes':''}
+${hash?'- Incluir hashtags optimizados para Perú y agroindustria':''}
+${cta?'- Incluir llamada a la acción con WhatsApp 923 269 720':''}
+${precio?'- Mencionar que pueden consultar precio por WhatsApp':''}
+
+Para CADA red social seleccionada, genera un post adaptado al formato y audiencia de esa plataforma.
+Responde en JSON con esta estructura exacta (solo JSON, sin markdown):
+{
+  "fb": "texto del post para Facebook (si fue seleccionada, sino omitir clave)",
+  "ig": "texto del post para Instagram (si fue seleccionada)",
+  "tk": "texto del guión/idea para TikTok (si fue seleccionada)",
+  "wa": "mensaje para WhatsApp masivo (si fue seleccionada)"
+}
+
+Reglas:
+- Facebook: post completo, máx 300 palabras, profesional pero cercano
+- Instagram: corto, visual, con emojis y hashtags al final
+- TikTok: guión breve (15-30 seg), gancho inicial fuerte, dinámico
+- WhatsApp: mensaje directo, corto (máx 120 palabras), personal, con saludo`;
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    const data=await res.json();
+    const raw=data.content.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
+    generatedTexts=JSON.parse(raw);
+
+    // Mostrar primera red activa
+    const primerRed=redes[0];
+    currentPreviewNet=primerRed;
+    document.querySelectorAll('.pnt').forEach(b=>b.classList.remove('act'));
+    document.getElementById('pnt-'+primerRed).classList.add('act');
+    renderPreview(primerRed,generatedTexts[primerRed]||'');
+    document.getElementById('postActions').style.display='flex';
+
+    // Guardar en historial
+    await guardarEnHistorial(prod,obj,redes);
+
+  }catch(e){
+    document.getElementById('previewBody').innerHTML=`<div style="text-align:center;padding:40px;color:var(--rojo);"><div style="font-size:2rem;margin-bottom:8px;">⚠️</div><p style="font-size:.85rem;">Error al generar. Verifica la conexión.</p><small style="color:#aaa;">${e.message}</small></div>`;
+  }
+  btn.disabled=false;btn.textContent='✨ Generar con IA';
+}
+
+function renderPreview(net,texto){
+  const netData={
+    fb:{name:'Molinos Viterra',sub:'Página de Facebook',color:'var(--fb)',acc:'👍 Me gusta · 💬 Comentar · ↗ Compartir'},
+    ig:{name:'molinosviterra',sub:'Instagram',color:'var(--ig)',acc:'❤️ · 💬 · ✈️ · 🔖'},
+    tk:{name:'@molinosviterra',sub:'TikTok',color:'#333',acc:'❤️ · 💬 · ↗'},
+    wa:{name:'Molinos Viterra',sub:'WhatsApp Business',color:'var(--wa)',acc:'✓✓ Enviado'}
+  };
+  const d=netData[net];
+  document.getElementById('previewBody').innerHTML=`
+    <div class="post-card">
+      <div class="post-header">
+        <div class="post-avatar" style="background:${d.color};">MV</div>
+        <div class="post-user"><strong>${d.name}</strong><span>${d.sub}</span></div>
+      </div>
+      <div class="post-img"><img src="https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=340&q=50" alt="" style="width:100%;height:100%;object-fit:cover;opacity:.6;"/></div>
+      <div class="post-text">${texto||'(Sin contenido para esta red)'}</div>
+      <div class="post-actions">${d.acc}</div>
+    </div>`;
+}
+
+function copiarPost(){
+  const net=currentPreviewNet;
+  const txt=generatedTexts[net]||'';
+  navigator.clipboard.writeText(txt).then(()=>{alert('✅ Texto copiado al portapapeles');}).catch(()=>{alert('Por favor copia manualmente:\n\n'+txt);});
+}
+function enviarWA(){
+  const txt=generatedTexts.wa||generatedTexts[currentPreviewNet]||'';
+  window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank');
+}
+async function guardarCampana(){
+  alert('✅ Campaña guardada en el historial.');
+}
+
+// ═══════════════════════════════════════════
+// PLANTILLAS
+// ═══════════════════════════════════════════
+const PLANTILLAS=[
+  {icon:'🔥',titulo:'Oferta Flash',desc:'Post urgente con descuento por tiempo limitado',tipo:'promo',prompt:'campaña de oferta flash con descuento especial, urgencia y escasez'},
+  {icon:'📊',titulo:'Datos técnicos',desc:'Infografía educativa sobre beneficios nutricionales',tipo:'info',prompt:'post educativo con datos técnicos y beneficios nutricionales del producto'},
+  {icon:'🐖',titulo:'Testimonio',desc:'Historia de éxito de un productor porcino',tipo:'viral',prompt:'testimonio de productor porcino satisfecho con resultados concretos'},
+  {icon:'🌟',titulo:'Presentación de producto',desc:'Lanzamiento o destacado de un producto estrella',tipo:'promo',prompt:'presentación destacada del producto con sus principales características'},
+  {icon:'💡',titulo:'Consejo del día',desc:'Tip de nutrición o manejo para productores',tipo:'info',prompt:'consejo práctico de nutrición porcina para productores locales'},
+  {icon:'🎉',titulo:'Efeméride / Fecha especial',desc:'Contenido para fechas clave del calendario',tipo:'viral',prompt:'post festivo o de fecha especial conectado con la productividad porcina'},
+  {icon:'📍',titulo:'Somos locales',desc:'Destaca la ubicación en el Parque Porcino',tipo:'info',prompt:'post destacando la cercanía y ubicación estratégica en el Parque Porcino Callao'},
+  {icon:'🤝',titulo:'Servicio integral',desc:'Molienda + ensacado + soporte en un solo lugar',tipo:'promo',prompt:'post destacando el servicio integral de molienda, ensacado y soporte técnico'},
+];
+function renderPlantillas(){
+  const g=document.getElementById('tplGrid');
+  if(!g)return;
+  g.innerHTML=PLANTILLAS.map((t,i)=>`
+    <div class="tpl-card" onclick="selectTpl(${i},this)">
+      <span class="tpl-badge ${t.tipo}">${t.tipo.toUpperCase()}</span>
+      <div class="tpl-icon">${t.icon}</div>
+      <h4>${t.titulo}</h4>
+      <p>${t.desc}</p>
+    </div>`).join('');
+}
+function selectTpl(i,el){
+  document.querySelectorAll('.tpl-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedTpl=i;
+  document.getElementById('useTplBtn').disabled=false;
+}
+async function usarPlantilla(){
+  if(selectedTpl===null)return;
+  const tpl=PLANTILLAS[selectedTpl];
+  document.getElementById('userIdea').value=tpl.prompt;
+  setMode('idea',document.querySelectorAll('.mode-pill')[1]);
+  switchMktTab('generador');
+  setTimeout(generarCampana,300);
+}
+
+// ═══════════════════════════════════════════
+// CALENDARIO
+// ═══════════════════════════════════════════
+let calDate=new Date();
+const CAL_POSTS={};
+function cambiarMes(d){calDate.setMonth(calDate.getMonth()+d);renderCalendar();}
+function renderCalendar(){
+  const g=document.getElementById('calGrid');const lb=document.getElementById('calMonthLabel');
+  if(!g||!lb)return;
+  const y=calDate.getFullYear(),m=calDate.getMonth();
+  lb.textContent=new Date(y,m,1).toLocaleString('es-PE',{month:'long',year:'numeric'}).replace(/^\w/,c=>c.toUpperCase());
+  const dias=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  let html=dias.map(d=>`<div class="cal-day-label">${d}</div>`).join('');
+  const first=new Date(y,m,1).getDay();
+  const total=new Date(y,m+1,0).getDate();
+  const today=new Date();
+  for(let i=0;i<first;i++)html+=`<div class="cal-day other-month"></div>`;
+  for(let d=1;d<=total;d++){
+    const isToday=y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate();
+    const key=`${y}-${m+1}-${d}`;
+    const hasPost=CAL_POSTS[key];
+    html+=`<div class="cal-day${isToday?' today':''}${hasPost?' has-post':''}" onclick="calClick('${key}',${d})">${d}</div>`;
+  }
+  g.innerHTML=html;
+}
+function calClick(key,d){
+  const det=document.getElementById('calDetail');
+  if(CAL_POSTS[key]){
+    det.style.display='block';
+    det.innerHTML=`<strong>📅 ${d} — Campaña programada:</strong><br/>${CAL_POSTS[key]}`;
+  }else{
+    const txt=prompt(`📅 Programar campaña para el día ${d}:\n\nEscribe una nota o título de la campaña:`);
+    if(txt){CAL_POSTS[key]=txt;renderCalendar();det.style.display='block';det.innerHTML=`<strong>✅ Guardado para el día ${d}:</strong><br/>${txt}`;}
+  }
+}
+
+// ═══════════════════════════════════════════
+// MÉTRICAS META
+// ═══════════════════════════════════════════
+let metaConnected=false;
+async function conectarMeta(){
+  const token=document.getElementById('metaToken').value.trim();
+  if(!token){alert('Por favor ingresa tu token de Meta.');return;}
+  const st=document.getElementById('metaStatus');
+  st.textContent='⏳ Conectando...';
+  try{
+    const res=await fetch(`https://graph.facebook.com/v18.0/me?fields=name,id&access_token=${token}`);
+    const data=await res.json();
+    if(data.error){st.textContent='❌ Token inválido: '+data.error.message;return;}
+    st.textContent='✅ Conectado como: '+data.name;
+    metaConnected=true;
+    await window.storage.set('mv_meta_token',token);
+    cargarMetricasReales(token);
+  }catch(e){
+    st.textContent='❌ Error de conexión. Verifica el token.';
+  }
+}
+async function cargarMetricasReales(token){
+  document.getElementById('metaConnectBox').style.background='linear-gradient(135deg,#1b5e20,#2e7d32)';
+  try{
+    const res=await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${token}`);
+    const data=await res.json();
+    if(data.data&&data.data.length>0){
+      const pageId=data.data[0].id;
+      const pageToken=data.data[0].access_token;
+      const insRes=await fetch(`https://graph.facebook.com/v18.0/${pageId}/insights?metric=page_fans,page_impressions_week,page_post_engagements&access_token=${pageToken}`);
+      const insData=await insRes.json();
+      if(insData.data){
+        const fans=insData.data.find(d=>d.name==='page_fans');
+        const imp=insData.data.find(d=>d.name==='page_impressions_week');
+        const eng=insData.data.find(d=>d.name==='page_post_engagements');
+        renderMetricas({
+          fb_seg:fans?.values?.[0]?.value||0,
+          fb_imp:imp?.values?.[0]?.value||0,
+          fb_eng:eng?.values?.[0]?.value||0,
+        });return;
+      }
+    }
+  }catch(e){}
+  renderMetricasDemo();
+}
+function loadMetricas(){
+  window.storage?.get('mv_meta_token').then(r=>{
+    if(r&&r.value){document.getElementById('metaToken').value=r.value;conectarMeta();}
+    else renderMetricasDemo();
+  }).catch(()=>renderMetricasDemo());
+}
+function renderMetricasDemo(){
+  renderMetricas({fb_seg:1240,fb_imp:8430,fb_eng:312,ig_seg:890,ig_imp:5200,ig_eng:445,tk_views:12500,wa_msg:67,demo:true});
+}
+function renderMetricas(d){
+  if(d.fb_seg!==undefined)document.getElementById('kpi-fb-seg').textContent=d.fb_seg?.toLocaleString()||'—';
+  if(d.ig_seg!==undefined)document.getElementById('kpi-ig-seg').textContent=d.ig_seg?.toLocaleString()||'—';
+  const kpi=document.getElementById('kpiMetricas');
+  kpi.innerHTML=`
+    <div class="kpi-m fb"><div class="net" style="color:var(--fb)">📘 FACEBOOK</div><div class="val">${(d.fb_seg||0).toLocaleString()}</div><div class="lbl">Seguidores${d.demo?' (demo)':''}</div><div class="trend trend-up">▲ +12 esta semana</div></div>
+    <div class="kpi-m fb"><div class="net" style="color:var(--fb)">📘 ALCANCE</div><div class="val">${(d.fb_imp||0).toLocaleString()}</div><div class="lbl">Impresiones 7 días</div><div class="trend trend-up">▲ +8.3%</div></div>
+    <div class="kpi-m ig"><div class="net" style="color:var(--ig)">📷 INSTAGRAM</div><div class="val">${(d.ig_seg||0).toLocaleString()}</div><div class="lbl">Seguidores${d.demo?' (demo)':''}</div><div class="trend trend-up">▲ +28 esta semana</div></div>
+    <div class="kpi-m ig"><div class="net" style="color:var(--ig)">📷 ENGAGEMENT</div><div class="val">${(d.ig_eng||0).toLocaleString()}</div><div class="lbl">Interacciones 7 días</div><div class="trend trend-up">▲ +15.2%</div></div>
+    <div class="kpi-m tk"><div class="net">♪ TIKTOK</div><div class="val">${(d.tk_views||0).toLocaleString()}</div><div class="lbl">Vistas${d.demo?' (demo)':''}</div><div class="trend trend-up">▲ +24.8%</div></div>
+    <div class="kpi-m wa"><div class="net" style="color:var(--wa)">💬 WHATSAPP</div><div class="val">${(d.wa_msg||0)}</div><div class="lbl">Consultas recibidas</div><div class="trend trend-dn">▼ -3 vs semana ant.</div></div>`;
+  const semana=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  const vals=[420,680,510,890,760,1200,950];
+  const max=Math.max(...vals);
+  document.getElementById('barChart').innerHTML=semana.map((s,i)=>`
+    <div class="bar-wrap">
+      <div class="bar-val">${vals[i]}</div>
+      <div class="bar" style="height:${Math.round(vals[i]/max*100)}px;background:linear-gradient(to top,var(--verde),var(--verde2));"></div>
+      <div class="bar-label">${s}</div>
+    </div>`).join('');
+  document.getElementById('topPosts').innerHTML=`
+    <div class="top-post-card fb-card"><div class="net-tag" style="color:var(--fb)">📘 Facebook</div><p>🌾 ¡VitaCerdo Engorde ya disponible! Máxima ganancia de peso para tu granja. Formulación técnica especializada para cerdos en etapa de acabado...</p><div class="post-stats"><span>👍 <strong>89</strong></span><span>💬 <strong>23</strong></span><span>↗ <strong>45</strong></span></div></div>
+    <div class="top-post-card ig-card"><div class="net-tag" style="color:var(--ig)">📷 Instagram</div><p>💪 ¿Tu cerdo no llega al peso esperado? 🐖 Con VitaMarrana Lactante mejoras la camada desde el primer día. ¡Consulta ya! 923 269 720 📲</p><div class="post-stats"><span>❤️ <strong>134</strong></span><span>💬 <strong>18</strong></span><span>🔖 <strong>67</strong></span></div></div>`;
+}
+
+// ═══════════════════════════════════════════
+// HISTORIAL
+// ═══════════════════════════════════════════
+async function guardarEnHistorial(prod,obj,redes){
+  try{
+    const r=await window.storage.get('mv_historial');
+    const hist=r?JSON.parse(r.value):[];
+    const redesNombres={'fb':'📘','ig':'📷','tk':'♪','wa':'💬'};
+    hist.unshift({redes:redes.map(r=>redesNombres[r]).join(''),prod,obj,fecha:new Date().toLocaleDateString('es-PE'),status:'publicado'});
+    if(hist.length>50)hist.splice(50);
+    await window.storage.set('mv_historial',JSON.stringify(hist));
+    renderHistorial(hist);
+  }catch(e){}
+}
+async function loadHistorial(){
+  try{const r=await window.storage.get('mv_historial');if(r&&r.value)renderHistorial(JSON.parse(r.value));}catch(e){}
+}
+function renderHistorial(hist){
+  const b=document.getElementById('historialBody');if(!b)return;
+  if(!hist||!hist.length){b.innerHTML=`<tr><td colspan="5" style="text-align:center;color:#aaa;padding:24px;">Aún no hay campañas generadas.</td></tr>`;return;}
+  b.innerHTML=hist.map(h=>`
+    <tr>
+      <td><span class="net-icon">${h.redes}</span></td>
+      <td>${h.obj||'Campaña IA'}</td>
+      <td>${h.prod}</td>
+      <td>${h.fecha}</td>
+      <td><span class="status-pub">● ${h.status||'guardado'}</span></td>
+    </tr>`).join('');
+}
+async function guardarConfig(){
+  alert('✅ Configuración del Agente IA guardada correctamente.');
+}
+
+// ═══════════════════════════════════════════
+// WEB PÚBLICA
+// ═══════════════════════════════════════════
+function filterProd(cat,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.prod-card').forEach(c=>{c.style.display=(cat==='todos'||c.dataset.cat===cat)?'block':'none';});
+}
+function cotizar(prod){
+  window.open('https://wa.me/51923269720?text='+encodeURIComponent('Hola Molinos Viterra, quisiera cotizar: '+prod+' (50 kg).'),'_blank');
+}
+function submitForm(){
+  const n=document.getElementById('fname').value.trim(),p=document.getElementById('fphone').value.trim();
+  if(!n||!p){alert('Ingresa nombre y teléfono.');return;}
+  document.getElementById('formSuccess').style.display='block';
+  setTimeout(()=>{window.open('https://wa.me/51923269720?text='+encodeURIComponent(`Hola 👋\n*Nombre:* ${n}\n*Tel:* ${p}\n*Producto:* ${document.getElementById('fprod').value}\n*Mensaje:* ${document.getElementById('fmsg').value||'Sin mensaje'}`),'_blank');},800);
+}
+const obs=new IntersectionObserver(e=>{e.forEach(e=>{if(e.isIntersecting){e.target.style.opacity='1';e.target.style.transform='translateY(0)';}});},{threshold:.1});
+document.querySelectorAll('.prod-card,.serv-card,.porque-card,.mv-card').forEach(el=>{
+  el.style.opacity='0';el.style.transform='translateY(24px)';el.style.transition='opacity .5s,transform .5s';obs.observe(el);
+});
+</script>
+</body>
+</html>
